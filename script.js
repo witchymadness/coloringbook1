@@ -3,7 +3,11 @@ const ctx = canvas.getContext("2d");
 
 // Create a separate layer for drawing
 const drawingCanvas = document.createElement("canvas");
+drawingCanvas.width = canvas.width;
+drawingCanvas.height = canvas.height;
 const drawingCtx = drawingCanvas.getContext("2d");
+
+document.body.appendChild(drawingCanvas);
 
 const colorPicker = document.getElementById("colorPicker");
 
@@ -27,7 +31,6 @@ function resizeCanvas() {
     let container = document.querySelector(".canvas-container");
     let aspectRatio = img.width / img.height;
 
-    // Resize canvas while maintaining aspect ratio
     if (container.clientWidth / container.clientHeight > aspectRatio) {
         canvas.height = container.clientHeight;
         canvas.width = canvas.height * aspectRatio;
@@ -36,13 +39,11 @@ function resizeCanvas() {
         canvas.height = canvas.width / aspectRatio;
     }
 
-    // Ensure the drawing canvas matches
     drawingCanvas.width = canvas.width;
     drawingCanvas.height = canvas.height;
 
     redrawCanvas();
 }
-
 
 function redrawCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -52,8 +53,6 @@ function redrawCanvas() {
     ctx.scale(scale, scale);
     ctx.drawImage(img, -canvas.width / 2, -canvas.height / 2, canvas.width, canvas.height);
     ctx.restore();
-
-    // Draw the drawing layer on top
     ctx.drawImage(drawingCanvas, 0, 0);
 }
 
@@ -109,23 +108,32 @@ function stopPainting() {
 
 function draw(event) {
     if (!painting) return;
+    
+    let x, y;
+    if (event.touches) {
+        event.preventDefault();
+        x = event.touches[0].clientX - canvas.getBoundingClientRect().left;
+        y = event.touches[0].clientY - canvas.getBoundingClientRect().top;
+    } else {
+        x = event.offsetX;
+        y = event.offsetY;
+    }
 
     drawingCtx.lineWidth = 10 * scale;
     drawingCtx.lineCap = "round";
 
     if (tool === "eraser") {
-        drawingCtx.globalCompositeOperation = "destination-out"; // Erases only drawings
-        drawingCtx.strokeStyle = "rgba(0,0,0,1)"; // Erases only drawing layer
+        drawingCtx.globalCompositeOperation = "destination-out";
+        drawingCtx.strokeStyle = "rgba(0,0,0,1)";
     } else {
-        drawingCtx.globalCompositeOperation = "source-over"; // Normal drawing mode
+        drawingCtx.globalCompositeOperation = "source-over";
         drawingCtx.strokeStyle = colorPicker.value;
     }
 
-    drawingCtx.lineTo(event.offsetX, event.offsetY);
+    drawingCtx.lineTo(x, y);
     drawingCtx.stroke();
     drawingCtx.beginPath();
-    drawingCtx.moveTo(event.offsetX, event.offsetY);
-
+    drawingCtx.moveTo(x, y);
     redrawCanvas();
 }
 
@@ -141,25 +149,17 @@ function downloadImage() {
     const tempCanvas = document.createElement("canvas");
     const tempCtx = tempCanvas.getContext("2d");
 
-    // Set canvas size
     tempCanvas.width = canvas.width;
     tempCanvas.height = canvas.height;
 
-    // Draw the background image
     tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
-
-    // Draw the user's strokes on top
     tempCtx.drawImage(drawingCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
 
-    // Convert to PNG
     const imageData = tempCanvas.toDataURL("image/png");
-
-    // Create a temporary link
     const link = document.createElement("a");
     link.href = imageData;
     link.download = "colored-image.png";
 
-    // Detect iOS and open the image in a new tab instead
     if (navigator.userAgent.match(/(iPhone|iPad|iPod)/i)) {
         window.open(imageData, "_blank");
     } else {
@@ -167,8 +167,22 @@ function downloadImage() {
     }
 }
 
-
 canvas.addEventListener("mousedown", startPainting);
 canvas.addEventListener("mouseup", stopPainting);
 canvas.addEventListener("mousemove", draw);
 canvas.addEventListener("click", fillCanvas);
+
+canvas.addEventListener("touchstart", (event) => {
+    event.preventDefault();
+    startPainting(event.touches[0]);
+});
+
+canvas.addEventListener("touchmove", (event) => {
+    event.preventDefault();
+    draw(event.touches[0]);
+});
+
+canvas.addEventListener("touchend", (event) => {
+    event.preventDefault();
+    stopPainting();
+});
