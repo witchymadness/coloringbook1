@@ -16,16 +16,27 @@ body {
 }
 
 .toolbar {
+    position: fixed; /* Keeps it at the top */
+    top: 0;
+    left: 0;
+    width: 100%;
+    background-color: #5a6b84; /* Darker background for contrast */
+    padding: 10px;
     display: flex;
-    flex-wrap: wrap;
     justify-content: center;
     gap: 10px;
-    padding: 10px;
-    background: #6D7E98; /* Slightly darker than the background */
-    width: 100%;
-    box-sizing: border-box;
-    border-bottom: 3px solid #5A6B84; /* Adds subtle depth */
+    z-index: 1000; /* Ensures it stays on top */
 }
+
+.canvas-container {
+    width: 100%;
+    height: calc(100vh - 60px); /* Adjust height to leave space for toolbar */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
 
 button {
     font-family: 'Fiona', sans-serif;

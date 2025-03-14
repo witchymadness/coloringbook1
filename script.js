@@ -27,6 +27,7 @@ function resizeCanvas() {
     let container = document.querySelector(".canvas-container");
     let aspectRatio = img.width / img.height;
 
+    // Resize canvas while maintaining aspect ratio
     if (container.clientWidth / container.clientHeight > aspectRatio) {
         canvas.height = container.clientHeight;
         canvas.width = canvas.height * aspectRatio;
@@ -35,12 +36,13 @@ function resizeCanvas() {
         canvas.height = canvas.width / aspectRatio;
     }
 
-    // Match the drawing layer to canvas size
+    // Ensure the drawing canvas matches
     drawingCanvas.width = canvas.width;
     drawingCanvas.height = canvas.height;
-    
+
     redrawCanvas();
 }
+
 
 function redrawCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
