@@ -1,6 +1,7 @@
 const canvas = document.getElementById("colorCanvas");
 const ctx = canvas.getContext("2d");
 
+// Create a separate layer for drawing
 const drawingCanvas = document.createElement("canvas");
 const drawingCtx = drawingCanvas.getContext("2d");
 
@@ -12,7 +13,8 @@ let history = [];
 let redoStack = [];
 let scale = 1;
 let rotation = 0;
-let lastTouch = null;
+let lastTouchDistance = 0;
+let lastRotation = 0;
 
 let img = new Image();
 img.src = "0a98faf0-a206-430c-9ee4-c447997c092f.jpg";
@@ -41,13 +43,9 @@ function resizeCanvas() {
 
 function redrawCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2);
-    ctx.rotate(rotation * Math.PI / 180);
-    ctx.scale(scale, scale);
-    ctx.drawImage(img, -canvas.width / 2, -canvas.height / 2, canvas.width, canvas.height);
-    ctx.restore();
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
+    // Draw the user's drawing on top
     ctx.drawImage(drawingCanvas, 0, 0);
 }
 
@@ -90,11 +88,13 @@ function redo() {
 }
 
 function startPainting(event) {
+    event.preventDefault(); // Prevent scrolling
     painting = true;
-    lastTouch = event.touches[0];
+    draw(event);
 }
 
-function stopPainting() {
+function stopPainting(event) {
+    event.preventDefault(); // Prevent scrolling
     painting = false;
     drawingCtx.beginPath();
     saveState();
@@ -102,12 +102,9 @@ function stopPainting() {
 }
 
 function draw(event) {
-    if (!painting || !event.touches.length) return;
-    event.preventDefault();
-    let touch = event.touches[0];
+    event.preventDefault(); // Prevent scrolling
 
-    let x = touch.clientX - canvas.getBoundingClientRect().left;
-    let y = touch.clientY - canvas.getBoundingClientRect().top;
+    if (!painting) return;
 
     drawingCtx.lineWidth = 10 * scale;
     drawingCtx.lineCap = "round";
@@ -120,16 +117,19 @@ function draw(event) {
         drawingCtx.strokeStyle = colorPicker.value;
     }
 
-    drawingCtx.beginPath();
-    drawingCtx.moveTo(lastTouch.clientX - canvas.getBoundingClientRect().left, lastTouch.clientY - canvas.getBoundingClientRect().top);
+    let x = event.offsetX || event.touches?.[0]?.clientX - canvas.getBoundingClientRect().left;
+    let y = event.offsetY || event.touches?.[0]?.clientY - canvas.getBoundingClientRect().top;
+
     drawingCtx.lineTo(x, y);
     drawingCtx.stroke();
-    
-    lastTouch = touch;
+    drawingCtx.beginPath();
+    drawingCtx.moveTo(x, y);
+
     redrawCanvas();
 }
 
 function fillCanvas(event) {
+    event.preventDefault(); // Prevent scrolling
     if (tool !== "bucket") return;
     drawingCtx.fillStyle = colorPicker.value;
     drawingCtx.fillRect(0, 0, drawingCanvas.width, drawingCanvas.height);
@@ -148,6 +148,7 @@ function downloadImage() {
     tempCtx.drawImage(drawingCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
 
     const imageData = tempCanvas.toDataURL("image/png");
+
     const link = document.createElement("a");
     link.href = imageData;
     link.download = "colored-image.png";
@@ -159,7 +160,13 @@ function downloadImage() {
     }
 }
 
-canvas.addEventListener("touchstart", startPainting);
-canvas.addEventListener("touchend", stopPainting);
-canvas.addEventListener("touchmove", draw);
+// Prevent scrolling when interacting with the canvas
+canvas.addEventListener("mousedown", startPainting);
+canvas.addEventListener("mouseup", stopPainting);
+canvas.addEventListener("mousemove", draw);
+canvas.addEventListener("click", fillCanvas);
 
+// For mobile support
+canvas.addEventListener("touchstart", startPainting, { passive: false });
+canvas.addEventListener("touchend", stopPainting, { passive: false });
+canvas.addEventListener("touchmove", draw, { passive: false });
