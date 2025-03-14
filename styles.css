@@ -1,0 +1,58 @@
+@font-face {
+    font-family: 'Fiona';
+    src: url('Fiona-Regular.otf') format('opentype');
+}
+
+body {
+    margin: 0;
+    font-family: 'Fiona', sans-serif;
+    background-color: #8194AE;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px;
+    background: #6D7E98; /* Slightly darker than the background */
+    width: 100%;
+    box-sizing: border-box;
+    border-bottom: 3px solid #5A6B84; /* Adds subtle depth */
+}
+
+button {
+    font-family: 'Fiona', sans-serif;
+    background: #5A6B84; /* Darker buttons */
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s ease-in-out;
+}
+
+/* Darker on hover */
+button:hover {
+    background: #4C5C77;
+}
+
+/* Even darker when selected (active state) */
+button:active {
+    background: #3E4C64;
+    transform: scale(0.95); /* Press animation */
+}
+
+/* Color picker and slider styling */
+input[type="color"], input[type="range"] {
+    cursor: pointer;
+    border: none;
+    background: transparent;
+}
