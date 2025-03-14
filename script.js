@@ -1,13 +1,8 @@
 const canvas = document.getElementById("colorCanvas");
 const ctx = canvas.getContext("2d");
 
-// Create a separate layer for drawing
 const drawingCanvas = document.createElement("canvas");
-drawingCanvas.width = canvas.width;
-drawingCanvas.height = canvas.height;
 const drawingCtx = drawingCanvas.getContext("2d");
-
-document.body.appendChild(drawingCanvas);
 
 const colorPicker = document.getElementById("colorPicker");
 
@@ -17,8 +12,7 @@ let history = [];
 let redoStack = [];
 let scale = 1;
 let rotation = 0;
-let lastTouchDistance = 0;
-let lastRotation = 0;
+let lastTouch = null;
 
 let img = new Image();
 img.src = "0a98faf0-a206-430c-9ee4-c447997c092f.jpg";
@@ -53,6 +47,7 @@ function redrawCanvas() {
     ctx.scale(scale, scale);
     ctx.drawImage(img, -canvas.width / 2, -canvas.height / 2, canvas.width, canvas.height);
     ctx.restore();
+
     ctx.drawImage(drawingCanvas, 0, 0);
 }
 
@@ -96,7 +91,7 @@ function redo() {
 
 function startPainting(event) {
     painting = true;
-    draw(event);
+    lastTouch = event.touches[0];
 }
 
 function stopPainting() {
@@ -107,17 +102,12 @@ function stopPainting() {
 }
 
 function draw(event) {
-    if (!painting) return;
-    
-    let x, y;
-    if (event.touches) {
-        event.preventDefault();
-        x = event.touches[0].clientX - canvas.getBoundingClientRect().left;
-        y = event.touches[0].clientY - canvas.getBoundingClientRect().top;
-    } else {
-        x = event.offsetX;
-        y = event.offsetY;
-    }
+    if (!painting || !event.touches.length) return;
+    event.preventDefault();
+    let touch = event.touches[0];
+
+    let x = touch.clientX - canvas.getBoundingClientRect().left;
+    let y = touch.clientY - canvas.getBoundingClientRect().top;
 
     drawingCtx.lineWidth = 10 * scale;
     drawingCtx.lineCap = "round";
@@ -130,10 +120,12 @@ function draw(event) {
         drawingCtx.strokeStyle = colorPicker.value;
     }
 
+    drawingCtx.beginPath();
+    drawingCtx.moveTo(lastTouch.clientX - canvas.getBoundingClientRect().left, lastTouch.clientY - canvas.getBoundingClientRect().top);
     drawingCtx.lineTo(x, y);
     drawingCtx.stroke();
-    drawingCtx.beginPath();
-    drawingCtx.moveTo(x, y);
+    
+    lastTouch = touch;
     redrawCanvas();
 }
 
@@ -167,22 +159,7 @@ function downloadImage() {
     }
 }
 
-canvas.addEventListener("mousedown", startPainting);
-canvas.addEventListener("mouseup", stopPainting);
-canvas.addEventListener("mousemove", draw);
-canvas.addEventListener("click", fillCanvas);
+canvas.addEventListener("touchstart", startPainting);
+canvas.addEventListener("touchend", stopPainting);
+canvas.addEventListener("touchmove", draw);
 
-canvas.addEventListener("touchstart", (event) => {
-    event.preventDefault();
-    startPainting(event.touches[0]);
-});
-
-canvas.addEventListener("touchmove", (event) => {
-    event.preventDefault();
-    draw(event.touches[0]);
-});
-
-canvas.addEventListener("touchend", (event) => {
-    event.preventDefault();
-    stopPainting();
-});
