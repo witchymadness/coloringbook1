@@ -16,54 +16,52 @@ body {
 }
 
 .toolbar {
-    position: fixed; /* Keeps it at the top */
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
-    background-color: #5a6b84; /* Darker background for contrast */
-    padding: 10px;
+    background-color: #5a6b84;
+    padding: 5px;
     display: flex;
+    overflow-x: auto;
     justify-content: center;
-    gap: 10px;
-    z-index: 1000; /* Ensures it stays on top */
+    gap: 5px;
+    z-index: 1000;
+    white-space: nowrap;
+}
+
+.toolbar button {
+    font-family: 'Fiona', sans-serif;
+    background: #5A6B84;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: all 0.2s ease-in-out;
+}
+
+button:hover {
+    background: #4C5C77;
+}
+
+button:active {
+    background: #3E4C64;
+    transform: scale(0.95);
 }
 
 .canvas-container {
     width: 100%;
-    height: calc(100vh - 60px); /* Adjust height to leave space for toolbar */
+    height: calc(100vh - 50px);
     display: flex;
     justify-content: center;
     align-items: center;
     overflow: hidden;
 }
 
-
-button {
-    font-family: 'Fiona', sans-serif;
-    background: #5A6B84; /* Darker buttons */
-    color: white;
-    border: none;
-    padding: 10px 15px;
-    font-size: 16px;
-    cursor: pointer;
-    border-radius: 8px;
-    transition: all 0.2s ease-in-out;
-}
-
-/* Darker on hover */
-button:hover {
-    background: #4C5C77;
-}
-
-/* Even darker when selected (active state) */
-button:active {
-    background: #3E4C64;
-    transform: scale(0.95); /* Press animation */
-}
-
-/* Color picker and slider styling */
-input[type="color"], input[type="range"] {
-    cursor: pointer;
-    border: none;
-    background: transparent;
+canvas {
+    max-width: 100%;
+    max-height: 100%;
+    touch-action: none;
 }

@@ -1,7 +1,7 @@
 const canvas = document.getElementById("colorCanvas");
 const ctx = canvas.getContext("2d");
 
-// Create a separate layer for drawing
+// Separate drawing layer
 const drawingCanvas = document.createElement("canvas");
 const drawingCtx = drawingCanvas.getContext("2d");
 
@@ -11,27 +11,24 @@ let tool = "brush";
 let painting = false;
 let history = [];
 let redoStack = [];
-let scale = 1;
-let rotation = 0;
-let lastTouchDistance = 0;
-let lastRotation = 0;
 
 let img = new Image();
-img.src = "0a98faf0-a206-430c-9ee4-c447997c092f.jpg";
+img.src = "svg777.svg";  // This assumes the SVG is in the same folder as index.html
 img.onload = function () {
     resizeCanvas();
     saveState();
 };
 
+
 function resizeCanvas() {
     let container = document.querySelector(".canvas-container");
     let aspectRatio = img.width / img.height;
 
-    if (container.clientWidth / container.clientHeight > aspectRatio) {
-        canvas.height = container.clientHeight;
+    if (window.innerWidth / window.innerHeight > aspectRatio) {
+        canvas.height = window.innerHeight - 60;
         canvas.width = canvas.height * aspectRatio;
     } else {
-        canvas.width = container.clientWidth;
+        canvas.width = window.innerWidth;
         canvas.height = canvas.width / aspectRatio;
     }
 
@@ -44,8 +41,6 @@ function resizeCanvas() {
 function redrawCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-    // Draw the user's drawing on top
     ctx.drawImage(drawingCanvas, 0, 0);
 }
 
@@ -88,13 +83,13 @@ function redo() {
 }
 
 function startPainting(event) {
-    event.preventDefault(); // Prevent scrolling
+    event.preventDefault();
     painting = true;
     draw(event);
 }
 
 function stopPainting(event) {
-    event.preventDefault(); // Prevent scrolling
+    event.preventDefault();
     painting = false;
     drawingCtx.beginPath();
     saveState();
@@ -102,11 +97,10 @@ function stopPainting(event) {
 }
 
 function draw(event) {
-    event.preventDefault(); // Prevent scrolling
-
+    event.preventDefault();
     if (!painting) return;
 
-    drawingCtx.lineWidth = 10 * scale;
+    drawingCtx.lineWidth = 8;
     drawingCtx.lineCap = "round";
 
     if (tool === "eraser") {
@@ -129,12 +123,53 @@ function draw(event) {
 }
 
 function fillCanvas(event) {
-    event.preventDefault(); // Prevent scrolling
+    event.preventDefault();
     if (tool !== "bucket") return;
-    drawingCtx.fillStyle = colorPicker.value;
-    drawingCtx.fillRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+
+    let x = event.offsetX || event.touches?.[0]?.clientX - drawingCanvas.getBoundingClientRect().left;
+    let y = event.offsetY || event.touches?.[0]?.clientY - drawingCanvas.getBoundingClientRect().top;
+
+    let imageData = drawingCtx.getImageData(0, 0, drawingCanvas.width, drawingCanvas.height);
+    let pixels = imageData.data;
+    let stack = [[Math.floor(x), Math.floor(y)]];
+
+    let targetIndex = (Math.floor(y) * drawingCanvas.width + Math.floor(x)) * 4;
+    let targetAlpha = pixels[targetIndex + 3]; // Alpha channel of clicked pixel
+
+    if (targetAlpha !== 0) { 
+        return;  // Exit if the clicked area is not transparent
+    }
+
+    let fillColor = hexToRGBA(colorPicker.value);
+
+    while (stack.length > 0) {
+        let [px, py] = stack.pop();
+        let index = (py * drawingCanvas.width + px) * 4;
+
+        if (pixels[index + 3] === 0) { // Only fill transparent areas
+            pixels[index] = fillColor.r;
+            pixels[index + 1] = fillColor.g;
+            pixels[index + 2] = fillColor.b;
+            pixels[index + 3] = 255;
+
+            if (px > 0) stack.push([px - 1, py]); // Left
+            if (px < drawingCanvas.width - 1) stack.push([px + 1, py]); // Right
+            if (py > 0) stack.push([px, py - 1]); // Up
+            if (py < drawingCanvas.height - 1) stack.push([px, py + 1]); // Down
+        }
+    }
+
+    drawingCtx.putImageData(imageData, 0, 0);
     saveState();
     redrawCanvas();
+}
+
+// Convert Hex to RGBA
+function hexToRGBA(hex) {
+    let r = parseInt(hex.slice(1, 3), 16);
+    let g = parseInt(hex.slice(3, 5), 16);
+    let b = parseInt(hex.slice(5, 7), 16);
+    return { r, g, b };
 }
 
 function downloadImage() {
@@ -160,13 +195,12 @@ function downloadImage() {
     }
 }
 
-// Prevent scrolling when interacting with the canvas
+// Touch and mouse events
 canvas.addEventListener("mousedown", startPainting);
 canvas.addEventListener("mouseup", stopPainting);
 canvas.addEventListener("mousemove", draw);
 canvas.addEventListener("click", fillCanvas);
 
-// For mobile support
 canvas.addEventListener("touchstart", startPainting, { passive: false });
 canvas.addEventListener("touchend", stopPainting, { passive: false });
 canvas.addEventListener("touchmove", draw, { passive: false });
