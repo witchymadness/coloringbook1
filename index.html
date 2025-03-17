@@ -8,14 +8,12 @@
 </head>
 <body>
     <div class="toolbar">
-        <input type="color" id="colorPicker">
-        <input type="range" id="sizeSlider" min="1" max="50" value="10">
-        <button onclick="setTool('brush')">🖌</button>
-        <button onclick="setTool('eraser')">🧽</button>
-        <button onclick="setTool('bucket')">🪣</button>
-        <button onclick="undo()">↩️</button>
-        <button onclick="redo()">↪️</button>
-        <button onclick="downloadImage()">⬇️</button>
+        <div class="color-palette" id="palette"></div>
+        <button onclick="setTool('brush')">🖌️ Brush</button>
+        <button onclick="setTool('bucket')">🪣 Fill</button>
+        <button onclick="undo()">↩️ Undo</button>
+        <button onclick="redo()">↪️ Redo</button>
+        <button onclick="downloadImage()">⬇️ Save</button>
     </div>
     <div class="canvas-container">
         <canvas id="colorCanvas"></canvas>

@@ -1,40 +1,40 @@
 const canvas = document.getElementById("colorCanvas");
 const ctx = canvas.getContext("2d");
 
-// Separate drawing layer
 const drawingCanvas = document.createElement("canvas");
 const drawingCtx = drawingCanvas.getContext("2d");
 
-const colorPicker = document.getElementById("colorPicker");
+const offscreenCanvas = document.createElement("canvas");
+const offscreenCtx = offscreenCanvas.getContext("2d");
 
-let tool = "brush";
-let painting = false;
+const colors = [
+    "#fbd9dc", "#ff8cb2", "#ff8cc8", "#ffab8c", "#fff98c",
+    "#caff8c", "#8cffa3", "#8ccdff", "#ee8cff"
+];
+let selectedColor = colors[0];
+let currentTool = "brush";
+let isDrawing = false;
+
 let history = [];
 let redoStack = [];
 
 let img = new Image();
-img.src = "svg777.svg";  // This assumes the SVG is in the same folder as index.html
+img.src = "1.png";
 img.onload = function () {
     resizeCanvas();
     saveState();
+
+    offscreenCanvas.width = img.width;
+    offscreenCanvas.height = img.height;
+    offscreenCtx.clearRect(0, 0, img.width, img.height);
+    offscreenCtx.drawImage(img, 0, 0);
 };
 
-
 function resizeCanvas() {
-    let container = document.querySelector(".canvas-container");
-    let aspectRatio = img.width / img.height;
-
-    if (window.innerWidth / window.innerHeight > aspectRatio) {
-        canvas.height = window.innerHeight - 60;
-        canvas.width = canvas.height * aspectRatio;
-    } else {
-        canvas.width = window.innerWidth;
-        canvas.height = canvas.width / aspectRatio;
-    }
-
-    drawingCanvas.width = canvas.width;
-    drawingCanvas.height = canvas.height;
-
+    canvas.width = 320;
+    canvas.height = 700;
+    drawingCanvas.width = 320;
+    drawingCanvas.height = 700;
     redrawCanvas();
 }
 
@@ -45,10 +45,6 @@ function redrawCanvas() {
 }
 
 window.addEventListener("resize", resizeCanvas);
-
-function setTool(selectedTool) {
-    tool = selectedTool;
-}
 
 function saveState() {
     history.push(drawingCanvas.toDataURL());
@@ -82,80 +78,62 @@ function redo() {
     }
 }
 
-function startPainting(event) {
-    event.preventDefault();
-    painting = true;
-    draw(event);
+
+function setColor(color) {
+    selectedColor = color;
 }
 
-function stopPainting(event) {
-    event.preventDefault();
-    painting = false;
-    drawingCtx.beginPath();
-    saveState();
-    redrawCanvas();
-}
-
-function draw(event) {
-    event.preventDefault();
-    if (!painting) return;
-
-    drawingCtx.lineWidth = 8;
-    drawingCtx.lineCap = "round";
-
-    if (tool === "eraser") {
-        drawingCtx.globalCompositeOperation = "destination-out";
-        drawingCtx.strokeStyle = "rgba(0,0,0,1)";
-    } else {
-        drawingCtx.globalCompositeOperation = "source-over";
-        drawingCtx.strokeStyle = colorPicker.value;
-    }
-
-    let x = event.offsetX || event.touches?.[0]?.clientX - canvas.getBoundingClientRect().left;
-    let y = event.offsetY || event.touches?.[0]?.clientY - canvas.getBoundingClientRect().top;
-
-    drawingCtx.lineTo(x, y);
-    drawingCtx.stroke();
-    drawingCtx.beginPath();
-    drawingCtx.moveTo(x, y);
-
-    redrawCanvas();
+function setTool(tool) {
+    currentTool = tool;
 }
 
 function fillCanvas(event) {
+    if (currentTool !== "bucket") return;
     event.preventDefault();
-    if (tool !== "bucket") return;
 
-    let x = event.offsetX || event.touches?.[0]?.clientX - drawingCanvas.getBoundingClientRect().left;
-    let y = event.offsetY || event.touches?.[0]?.clientY - drawingCanvas.getBoundingClientRect().top;
+    let rect = canvas.getBoundingClientRect();
+    let x = Math.floor(event.clientX - rect.left);
+    let y = Math.floor(event.clientY - rect.top);
 
-    let imageData = drawingCtx.getImageData(0, 0, drawingCanvas.width, drawingCanvas.height);
-    let pixels = imageData.data;
-    let stack = [[Math.floor(x), Math.floor(y)]];
+    let width = drawingCanvas.width;
+    let height = drawingCanvas.height;
+    let imageData = drawingCtx.getImageData(0, 0, width, height);
+    let bgData = offscreenCtx.getImageData(0, 0, img.width, img.height);
 
-    let targetIndex = (Math.floor(y) * drawingCanvas.width + Math.floor(x)) * 4;
-    let targetAlpha = pixels[targetIndex + 3]; // Alpha channel of clicked pixel
+    let scaleX = img.width / width;
+    let scaleY = img.height / height;
+    let imgX = Math.floor(x * scaleX);
+    let imgY = Math.floor(y * scaleY);
 
-    if (targetAlpha !== 0) { 
-        return;  // Exit if the clicked area is not transparent
-    }
+    let startIdx = (imgY * img.width + imgX) * 4;
+    let targetAlpha = bgData.data[startIdx + 3];
 
-    let fillColor = hexToRGBA(colorPicker.value);
+    if (targetAlpha !== 0) return;
+
+    let fillColor = hexToRGBA(selectedColor);
+    let stack = [[x, y]];
+    let visited = new Uint8Array(width * height);
 
     while (stack.length > 0) {
         let [px, py] = stack.pop();
-        let index = (py * drawingCanvas.width + px) * 4;
+        if (px < 0 || px >= width || py < 0 || py >= height) continue;
+        let index = (py * width + px) * 4;
 
-        if (pixels[index + 3] === 0) { // Only fill transparent areas
-            pixels[index] = fillColor.r;
-            pixels[index + 1] = fillColor.g;
-            pixels[index + 2] = fillColor.b;
-            pixels[index + 3] = 255;
+        if (visited[py * width + px]) continue;
+        visited[py * width + px] = 1;
 
-            if (px > 0) stack.push([px - 1, py]); // Left
-            if (px < drawingCanvas.width - 1) stack.push([px + 1, py]); // Right
-            if (py > 0) stack.push([px, py - 1]); // Up
-            if (py < drawingCanvas.height - 1) stack.push([px, py + 1]); // Down
+        let drawAlpha = imageData.data[index + 3];
+
+        if (drawAlpha < 10) {
+            imageData.data[index] = fillColor.r;
+            imageData.data[index + 1] = fillColor.g;
+            imageData.data[index + 2] = fillColor.b;
+            imageData.data[index + 3] = 255;
+
+            stack.push([px - 1, py]);
+            stack.push([px + 1, py]);
+            stack.push([px, py - 1]);
+            stack.push([px, py + 1]);
         }
     }
 
@@ -164,13 +142,58 @@ function fillCanvas(event) {
     redrawCanvas();
 }
 
-// Convert Hex to RGBA
 function hexToRGBA(hex) {
     let r = parseInt(hex.slice(1, 3), 16);
     let g = parseInt(hex.slice(3, 5), 16);
     let b = parseInt(hex.slice(5, 7), 16);
     return { r, g, b };
 }
+
+function startDrawing(event) {
+    if (currentTool !== "brush") return;
+    isDrawing = true;
+    drawingCtx.strokeStyle = selectedColor;
+    drawingCtx.lineWidth = 5;
+    drawingCtx.lineCap = "round";
+    drawingCtx.beginPath();
+}
+
+function draw(event) {
+    if (!isDrawing || currentTool !== "brush") return;
+    let rect = canvas.getBoundingClientRect();
+    let x = event.clientX - rect.left;
+    let y = event.clientY - rect.top;
+    drawingCtx.lineTo(x, y);
+    drawingCtx.stroke();
+    redrawCanvas();
+}
+
+function stopDrawing() {
+    if (isDrawing) {
+        isDrawing = false;
+        saveState();
+    }
+}
+
+function generatePalette() {
+    let palette = document.getElementById("palette");
+    colors.forEach(color => {
+        let colorBtn = document.createElement("button");
+        colorBtn.style.backgroundColor = color;
+        colorBtn.style.width = "40px";
+        colorBtn.style.height = "40px";
+        colorBtn.style.borderRadius = "50%";
+        colorBtn.addEventListener("click", () => setColor(color));
+        palette.appendChild(colorBtn);
+    });
+}
+
+generatePalette();
+canvas.addEventListener("mousedown", startDrawing);
+canvas.addEventListener("mousemove", draw);
+canvas.addEventListener("mouseup", stopDrawing);
+canvas.addEventListener("mouseout", stopDrawing);
+canvas.addEventListener("click", fillCanvas);  
 
 function downloadImage() {
     const tempCanvas = document.createElement("canvas");
@@ -194,13 +217,3 @@ function downloadImage() {
         link.click();
     }
 }
-
-// Touch and mouse events
-canvas.addEventListener("mousedown", startPainting);
-canvas.addEventListener("mouseup", stopPainting);
-canvas.addEventListener("mousemove", draw);
-canvas.addEventListener("click", fillCanvas);
-
-canvas.addEventListener("touchstart", startPainting, { passive: false });
-canvas.addEventListener("touchend", stopPainting, { passive: false });
-canvas.addEventListener("touchmove", draw, { passive: false });
